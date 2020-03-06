@@ -16,21 +16,24 @@ public class NPC_Behaviour : MonoBehaviour
     public float enemyFieldOfView;
     public float rotSpeed = 0.5f;
 
-
     private NavMeshAgent npcAgent;
     private SphereCollider npcCollider;
+    private GameObject player;
     private bool patroling;
     private bool readyToInteract, playerInteract;
     private bool searchPlayer;
+    private bool checkDistance = true;
     private int currentWaypoint = 0;
+    private float playerDistance;
     private float startTimeOnWaypoint;
     private float startAgentSpeed;
-    
+    WaitForSeconds delay = new WaitForSeconds(2);
 
     void Awake()
     {
         npcAgent = GetComponent<NavMeshAgent>();
         npcCollider = GetComponent<SphereCollider>();
+        player = GameObject.FindGameObjectWithTag("Player");
     }
 
     void Start()
@@ -38,6 +41,9 @@ public class NPC_Behaviour : MonoBehaviour
         startTimeOnWaypoint = timeOnWaypoint;
         startAgentSpeed = npcAgent.speed;
         patroling = true;
+
+        if(npcType == npcType.standardEnemy)
+            StartCoroutine(CheckDistance());
     }
     
     void Update()
@@ -55,7 +61,6 @@ public class NPC_Behaviour : MonoBehaviour
             TalkingSystem();
             patroling = false;
             npcAgent.speed = 0;
-            //npcAgent.isStopped = true;
             playerInteract = true;
         }
     }
@@ -76,21 +81,11 @@ public class NPC_Behaviour : MonoBehaviour
                     searchPlayer = true;
                     break;
                 default:
-                    print("Error?");
+                    print("nothing");
                     break;
             }
         }
-    }
-    void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag("Player"))
-        {
-            patroling = !patroling;
-            readyToInteract = false;
-            searchPlayer = false;
-            npcAgent.speed = startAgentSpeed;
-        }
-    }
+    }    
 
     void OnTriggerStay(Collider other)
     {
@@ -107,26 +102,47 @@ public class NPC_Behaviour : MonoBehaviour
                 if(Physics.Raycast(ray, out hit, npcCollider.radius))
                 {
                     if (hit.collider.CompareTag("Player"))
-                    {                        
-                        Debug.DrawLine(raycastPoint.position, hit.transform.position, Color.green);
+                    {
+                        Debug.DrawRay(raycastPoint.position, playerDirection.normalized * npcCollider.radius, Color.green);
+                        //if(playerDistance < )
+
+                        // stop patroling
+                        // move to player
+                        // attack
                     }
                 }
             }
 
+            // villagers look at the player when he start interacting with them (double check, one for the npc, one for the player).
             if (readyToInteract && playerInteract)
             {
-                print("guardami");
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(playerDirection), Time.deltaTime * rotSpeed);
             }
         }
-
-        
     }
 
+    void OnTriggerExit(Collider other)
+    {
+        // when player is outside enemies or villager range, npc start again patroling
+        if (other.CompareTag("Player"))
+        {
+            patroling = true;
+            readyToInteract = false;
+            searchPlayer = false;
+            checkDistance = true;
+            npcAgent.speed = startAgentSpeed;
+            if (npcType == npcType.standardEnemy)
+                StartCoroutine(CheckDistance());
+        }
+    }
+
+    // patroling function for both enemies and villagers npc, use timeOnWaypoint variable (time) to stop npc 
     void PatrolingSystem()
     {
+        // set waypoint destination from array
         npcAgent.destination = waypoints[currentWaypoint].position;
 
+        // check if npc is near to the next destination, after he move to the next one
         if (Vector3.Distance(transform.position, waypoints[currentWaypoint].position) <= 0.5f)
         {
             if (timeOnWaypoint <= 0)
@@ -150,5 +166,17 @@ public class NPC_Behaviour : MonoBehaviour
             print("Hello stranger! I used to be an adventurer like you, then I took an arrow to the knee..");
         if (npcType == npcType.merchant)
             print("Hello adventurer! Want to buy something?");
+    }
+
+    // coroutine to check distance from player (not every frame)
+    IEnumerator CheckDistance()
+    {
+        while (checkDistance)
+        {
+            playerDistance = Vector3.Distance(transform.position, player.transform.position);
+
+            yield return delay;
+        }
+        
     }
 }
