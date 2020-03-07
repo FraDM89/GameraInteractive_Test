@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
-public enum npcType { villager, merchant, standardEnemy}
+public enum npcType {villager, merchant, standardEnemy}
 
  [RequireComponent(typeof(NavMeshAgent))]
 public class NPC_Behaviour : MonoBehaviour
@@ -17,23 +17,24 @@ public class NPC_Behaviour : MonoBehaviour
     public float rotSpeed = 0.5f;
 
     private NavMeshAgent npcAgent;
+    private NPC_CheckPlayer checkPlayer;
     private SphereCollider npcCollider;
-    private GameObject player;
+    private Animator npcAnim;
     private bool patroling;
     private bool readyToInteract, playerInteract;
-    private bool searchPlayer;
-    private bool checkDistance = true;
+    private bool searchPlayer;    
     private int currentWaypoint = 0;
-    private float playerDistance;
+    private Vector3 npcMovement;
+    private float turnMovement;
     private float startTimeOnWaypoint;
     private float startAgentSpeed;
-    WaitForSeconds delay = new WaitForSeconds(2);
+    
 
     void Awake()
     {
         npcAgent = GetComponent<NavMeshAgent>();
         npcCollider = GetComponent<SphereCollider>();
-        player = GameObject.FindGameObjectWithTag("Player");
+        npcAnim = GetComponentInChildren<Animator>();
     }
 
     void Start()
@@ -41,9 +42,6 @@ public class NPC_Behaviour : MonoBehaviour
         startTimeOnWaypoint = timeOnWaypoint;
         startAgentSpeed = npcAgent.speed;
         patroling = true;
-
-        if(npcType == npcType.standardEnemy)
-            StartCoroutine(CheckDistance());
     }
     
     void Update()
@@ -63,6 +61,15 @@ public class NPC_Behaviour : MonoBehaviour
             npcAgent.speed = 0;
             playerInteract = true;
         }
+
+        if((npcType == npcType.standardEnemy || npcType == npcType.villager) && npcAnim != null)
+        {
+            npcMovement = npcAgent.desiredVelocity.normalized;
+            npcMovement = transform.InverseTransformDirection(npcMovement);            
+            turnMovement = Mathf.Atan2(npcMovement.x, npcMovement.z);
+            npcAnim.SetFloat("ver", npcMovement.z, 0.5f, Time.deltaTime);
+            npcAnim.SetFloat("hor", turnMovement, 0.5f, Time.deltaTime);
+        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -76,6 +83,7 @@ public class NPC_Behaviour : MonoBehaviour
                     break;
                 case npcType.merchant:
                     readyToInteract = true;
+                    npcAnim.SetTrigger("wave");
                     break;
                 case npcType.standardEnemy:
                     searchPlayer = true;
@@ -103,12 +111,7 @@ public class NPC_Behaviour : MonoBehaviour
                 {
                     if (hit.collider.CompareTag("Player"))
                     {
-                        Debug.DrawRay(raycastPoint.position, playerDirection.normalized * npcCollider.radius, Color.green);
-                        //if(playerDistance < )
-
-                        // stop patroling
-                        // move to player
-                        // attack
+                        Debug.DrawRay(raycastPoint.position, playerDirection.normalized * npcCollider.radius, Color.green);                        
                     }
                 }
             }
@@ -128,11 +131,9 @@ public class NPC_Behaviour : MonoBehaviour
         {
             patroling = true;
             readyToInteract = false;
-            searchPlayer = false;
-            checkDistance = true;
+            playerInteract = false;
+            searchPlayer = false;            
             npcAgent.speed = startAgentSpeed;
-            if (npcType == npcType.standardEnemy)
-                StartCoroutine(CheckDistance());
         }
     }
 
@@ -168,15 +169,5 @@ public class NPC_Behaviour : MonoBehaviour
             print("Hello adventurer! Want to buy something?");
     }
 
-    // coroutine to check distance from player (not every frame)
-    IEnumerator CheckDistance()
-    {
-        while (checkDistance)
-        {
-            playerDistance = Vector3.Distance(transform.position, player.transform.position);
-
-            yield return delay;
-        }
-        
-    }
+    
 }
