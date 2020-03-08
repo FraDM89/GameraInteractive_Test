@@ -1,29 +1,28 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class NPC_CheckPlayer : MonoBehaviour
 {
-    public float maxRange, midRange, minRange, outOfSightRange;
-    public bool drawRange_debug;
+    public float minRange, midRange, maxRange, outOfSightRange;
+    public bool drawRangeDebug;
     [HideInInspector]
     public bool playerNearby, playerClose, playerAttached;
 
-    private GameObject player;
-    private GameObject thisNPC;
-    private Animator myAnim;
-    private NPC_Behaviour myNpcBehaviour;
-    private bool checkDistance = true;
-    private float playerDistance;
+    private GameObject m_player;
+    private GameObject m_thisNPC;
+    private Animator m_myAnim;
+    private NPC_Behaviour m_myNpcBehaviour;
+    private bool m_checkDistance = true;
+    private float m_playerDistance;
     WaitForSeconds delay = new WaitForSeconds(1);
 
     
     void Awake()
     {
-        player = GameObject.FindGameObjectWithTag("Player");
-        thisNPC = gameObject.transform.GetChild(0).gameObject;
-        myAnim = GetComponent<Animator>();
-        myNpcBehaviour = GetComponent<NPC_Behaviour>();
+        m_player = GameObject.FindGameObjectWithTag("Player");
+        m_thisNPC = gameObject.transform.GetChild(0).gameObject;
+        m_myAnim = GetComponent<Animator>();
+        m_myNpcBehaviour = GetComponent<NPC_Behaviour>();
     }
 
     void Start()
@@ -33,52 +32,52 @@ public class NPC_CheckPlayer : MonoBehaviour
 
     void Update()
     {
-        if (playerDistance > maxRange && playerDistance < outOfSightRange)
+        if (m_playerDistance > maxRange && m_playerDistance < outOfSightRange)
         {
             playerNearby = false;
             playerClose = false;
             playerAttached = false;
 
-            thisNPC.SetActive(true);
-            if (myAnim != null)
-                myAnim.enabled = true;
-            if (myNpcBehaviour != null)
-                myNpcBehaviour.enabled = true;
+            m_thisNPC.SetActive(true);
+            if (m_myAnim != null)
+                m_myAnim.enabled = true;
+            if (m_myNpcBehaviour != null)
+                m_myNpcBehaviour.enabled = true;
         }
-        else if(playerDistance < maxRange && playerDistance > midRange)
+        else if(m_playerDistance < maxRange && m_playerDistance > midRange)
         {
             playerNearby = true;
             playerClose = false;
             playerAttached = false;
         }
-        else if (playerDistance < midRange && playerDistance > minRange)
+        else if (m_playerDistance < midRange && m_playerDistance > minRange)
         {
             playerNearby = false;
             playerClose = true;
             playerAttached = false;
         }         
-        else if ( playerDistance < minRange)
+        else if ( m_playerDistance < minRange)
         {
             playerNearby = false;
             playerClose = false;
             playerAttached = true;
         } 
-        else if (playerDistance > outOfSightRange)
+        else if (m_playerDistance > outOfSightRange)
         {
-            thisNPC.SetActive(false);
-            if (myAnim != null)
-                myAnim.enabled = false;
-            if(myNpcBehaviour != null)
-                myNpcBehaviour.enabled = false;
+            m_thisNPC.SetActive(false);
+            if (m_myAnim != null)
+                m_myAnim.enabled = false;
+            if(m_myNpcBehaviour != null)
+                m_myNpcBehaviour.enabled = false;
         }
     }
 
     // coroutine to check distance from player (not every frame)
     IEnumerator CheckDistance()
     {
-        while (checkDistance)
+        while (m_checkDistance)
         {
-            playerDistance = Vector3.Distance(transform.position, player.transform.position);             
+            m_playerDistance = Vector3.Distance(transform.position, m_player.transform.position);             
 
             yield return delay;         
         }
@@ -86,7 +85,7 @@ public class NPC_CheckPlayer : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        if (drawRange_debug)
+        if (drawRangeDebug)
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(transform.position, maxRange);

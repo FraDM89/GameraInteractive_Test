@@ -9,84 +9,92 @@ public enum npcType {villager, merchant, standardEnemy}
 public class NPC_Behaviour : MonoBehaviour
 {
     public npcType npcType;
-
-    public Transform[] waypoints;
     public Transform raycastPoint;
+    public Transform[] waypoints;
     public float timeOnWaypoint = 1f;
-    public float enemyFieldOfView;
-    public float rotSpeed = 0.5f;
+    public float npcFieldOfView;
+    public float rotSpeed = 100f;
+    public float attackRatio;
 
-    private NavMeshAgent npcAgent;
-    private NPC_CheckPlayer checkPlayer;
-    private SphereCollider npcCollider;
-    private Animator npcAnim;
-    private bool patroling;
-    private bool readyToInteract, playerInteract;
-    private bool searchPlayer;    
-    private int currentWaypoint = 0;
-    private Vector3 npcMovement;
-    private float turnMovement;
-    private float startTimeOnWaypoint;
-    private float startAgentSpeed;
-    
+    private NavMeshAgent m_npcAgent;
+    private NPC_CheckPlayer m_npcCheckPlayer;
+    private SphereCollider m_npcCollider;
+    private Animator m_npcAnim;
+    private bool m_patroling;
+    private bool m_readyToInteract, m_playerInteract;
+    private bool m_searchPlayer;
+    private bool m_isAttacking;
+    private int m_currentWaypoint = 0;
+    private Vector3 m_npcMovement;
+    private float m_turnMovement;
+    private float m_startTimeOnWaypoint;
+    private float m_startAgentSpeed;
+    WaitForSeconds m_attackRatio;
 
     void Awake()
     {
-        npcAgent = GetComponent<NavMeshAgent>();
-        npcCollider = GetComponent<SphereCollider>();
-        npcAnim = GetComponentInChildren<Animator>();
+        m_npcAgent = GetComponent<NavMeshAgent>();
+        m_npcCheckPlayer = GetComponent<NPC_CheckPlayer>();
+        m_npcCollider = GetComponent<SphereCollider>();
+        m_npcAnim = GetComponentInChildren<Animator>();
     }
 
     void Start()
     {
-        startTimeOnWaypoint = timeOnWaypoint;
-        startAgentSpeed = npcAgent.speed;
-        patroling = true;
+        m_startTimeOnWaypoint = timeOnWaypoint;
+        m_startAgentSpeed = m_npcAgent.speed;
+        m_patroling = true;
+        m_attackRatio = new WaitForSeconds(attackRatio);
     }
     
     void Update()
     {
-        if (patroling)
+        // movement depends if there are more than one waypoint
+        if (m_patroling)
         {
             if (waypoints.Length > 0)
                 PatrolingSystem();
             else if (waypoints.Length == 0)
-                patroling = false;
+                m_patroling = false;
         }
 
-        if (readyToInteract && Input.GetKeyDown(KeyCode.Space))
+        //
+        if (m_readyToInteract && Input.GetKeyDown(KeyCode.Space))
         {
             TalkingSystem();
-            patroling = false;
-            npcAgent.speed = 0;
-            playerInteract = true;
+            m_patroling = false;
+            m_npcAgent.speed = 0;
+            m_playerInteract = true;
         }
 
-        if((npcType == npcType.standardEnemy || npcType == npcType.villager) && npcAnim != null)
+        // (basic animator controller) calculate speed from moving agent to animate blendTree, please check animator variables name
+        if((npcType == npcType.standardEnemy || npcType == npcType.villager) && m_npcAnim != null)
         {
-            npcMovement = npcAgent.desiredVelocity.normalized;
-            npcMovement = transform.InverseTransformDirection(npcMovement);            
-            turnMovement = Mathf.Atan2(npcMovement.x, npcMovement.z);
-            npcAnim.SetFloat("ver", npcMovement.z, 0.5f, Time.deltaTime);
-            npcAnim.SetFloat("hor", turnMovement, 0.5f, Time.deltaTime);
+            m_npcMovement = m_npcAgent.desiredVelocity.normalized;
+            m_npcMovement = transform.InverseTransformDirection(m_npcMovement);
+            m_turnMovement = Mathf.Atan2(m_npcMovement.x, m_npcMovement.z);
+
+            m_npcAnim.SetFloat("ver", m_npcMovement.z, 0.5f, Time.deltaTime);
+            m_npcAnim.SetFloat("hor", m_turnMovement, 0.5f, Time.deltaTime);
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
+        // when player enter inside NPC zone he trigger NPC main behaviour (ready to search or ready to interact)
         if (other.CompareTag("Player"))
         {
             switch (npcType)
             {
-                case npcType.villager:
-                    readyToInteract = true;
+                case npcType.villager:                    
+                    m_searchPlayer = true;
                     break;
                 case npcType.merchant:
-                    readyToInteract = true;
-                    npcAnim.SetTrigger("wave");
+                    m_readyToInteract = true;
+                    m_npcAnim.SetTrigger("wave");
                     break;
                 case npcType.standardEnemy:
-                    searchPlayer = true;
+                    m_searchPlayer = true;
                     break;
                 default:
                     print("nothing");
@@ -99,25 +107,39 @@ public class NPC_Behaviour : MonoBehaviour
     {
         if(other.CompareTag("Player"))
         {
+            // first check player vector direction and angle
             Vector3 playerDirection = other.transform.position - transform.position;
             float anglePlayerDirection = Vector3.Angle(playerDirection, transform.forward);
 
-            if (anglePlayerDirection < enemyFieldOfView / 2 && raycastPoint != null && searchPlayer)
+            // player vector direction inside enemy field of view angle
+            if (anglePlayerDirection < npcFieldOfView / 2 && raycastPoint != null && m_searchPlayer)
             {
                 RaycastHit hit;
                 Ray ray = new Ray(raycastPoint.position, playerDirection.normalized);
 
-                if(Physics.Raycast(ray, out hit, npcCollider.radius))
+                if(Physics.Raycast(ray, out hit, m_npcCollider.radius))
                 {
+                    // another control to check if NPC see player without occlusions (walls for example)
                     if (hit.collider.CompareTag("Player"))
                     {
-                        Debug.DrawRay(raycastPoint.position, playerDirection.normalized * npcCollider.radius, Color.green);                        
+                        Debug.DrawRay(raycastPoint.position, playerDirection.normalized * m_npcCollider.radius, Color.green);
+                        m_readyToInteract = true;
+
+                        // based on the type of enemy and the distance from the player, NPC decide how to move and attack (melee, distance, ecc)
+                        if (npcType == npcType.standardEnemy && !m_isAttacking)
+                        {
+                            m_patroling = false;
+                            m_npcAgent.destination = hit.point;
+
+                            if(m_npcCheckPlayer.playerAttached)
+                                StartCoroutine(AttackPlayer());
+                        }
                     }
                 }
             }
 
             // villagers look at the player when he start interacting with them (double check, one for the npc, one for the player).
-            if (readyToInteract && playerInteract)
+            if (m_readyToInteract && m_playerInteract && npcType == npcType.villager)
             {
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(playerDirection), Time.deltaTime * rotSpeed);
             }
@@ -129,11 +151,11 @@ public class NPC_Behaviour : MonoBehaviour
         // when player is outside enemies or villager range, npc start again patroling
         if (other.CompareTag("Player"))
         {
-            patroling = true;
-            readyToInteract = false;
-            playerInteract = false;
-            searchPlayer = false;            
-            npcAgent.speed = startAgentSpeed;
+            m_patroling = true;
+            m_readyToInteract = false;
+            m_playerInteract = false;
+            m_searchPlayer = false;
+            m_npcAgent.speed = m_startAgentSpeed;
         }
     }
 
@@ -141,18 +163,18 @@ public class NPC_Behaviour : MonoBehaviour
     void PatrolingSystem()
     {
         // set waypoint destination from array
-        npcAgent.destination = waypoints[currentWaypoint].position;
+        m_npcAgent.destination = waypoints[m_currentWaypoint].position;
 
         // check if npc is near to the next destination, after he move to the next one
-        if (Vector3.Distance(transform.position, waypoints[currentWaypoint].position) <= 0.5f)
+        if (Vector3.Distance(transform.position, waypoints[m_currentWaypoint].position) <= 0.5f)
         {
             if (timeOnWaypoint <= 0)
             {
-                if (currentWaypoint < waypoints.Length)
-                    currentWaypoint++;
-                if (currentWaypoint == waypoints.Length)
-                    currentWaypoint = 0;
-                timeOnWaypoint = startTimeOnWaypoint;
+                if (m_currentWaypoint < waypoints.Length)
+                    m_currentWaypoint++;
+                if (m_currentWaypoint == waypoints.Length)
+                    m_currentWaypoint = 0;
+                timeOnWaypoint = m_startTimeOnWaypoint;
             }
             else
             {
@@ -168,6 +190,12 @@ public class NPC_Behaviour : MonoBehaviour
         if (npcType == npcType.merchant)
             print("Hello adventurer! Want to buy something?");
     }
-
     
+    IEnumerator AttackPlayer()
+    {
+        m_isAttacking = true;
+        print("Never Should've Come Here!");
+        yield return m_attackRatio;
+        m_isAttacking = false;
+    }
 }

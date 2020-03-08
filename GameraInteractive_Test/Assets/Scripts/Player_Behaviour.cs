@@ -6,27 +6,27 @@ using UnityEngine.AI;
 [RequireComponent(typeof(NavMeshAgent))]
 public class Player_Behaviour : MonoBehaviour
 {
-    private NavMeshAgent myNavMeshAgent;
-    private Animator myAnim;
-    private Vector3 playerMovement;
-    private float turnMovement;
+    private NavMeshAgent m_myNavMeshAgent;
+    private Animator m_myAnim;
+    private Vector3 m_playerMovement;
+    private float m_turnMovement;
 
     public LayerMask terrainLayer;
     
     void Awake()
     {
-        myNavMeshAgent = GetComponent<NavMeshAgent>();
-        myAnim = GetComponentInChildren<Animator>();
+        m_myNavMeshAgent = GetComponent<NavMeshAgent>();
+        m_myAnim = GetComponentInChildren<Animator>();
     }
 
     
     void Update()
     {
-        playerMovement = myNavMeshAgent.desiredVelocity.normalized;
-        playerMovement = transform.InverseTransformDirection(playerMovement);
-        turnMovement = Mathf.Atan2(playerMovement.x, playerMovement.z);
-        myAnim.SetFloat("ver", playerMovement.z, 0.1f, Time.deltaTime);
-        myAnim.SetFloat("hor", turnMovement, 0.1f, Time.deltaTime);
+        m_playerMovement = m_myNavMeshAgent.desiredVelocity.normalized;
+        m_playerMovement = transform.InverseTransformDirection(m_playerMovement);
+        m_turnMovement = Mathf.Atan2(m_playerMovement.x, m_playerMovement.z);
+        m_myAnim.SetFloat("ver", m_playerMovement.z, 0.1f, Time.deltaTime);
+        m_myAnim.SetFloat("hor", m_turnMovement, 0.1f, Time.deltaTime);
 
 
         if (Input.GetMouseButtonDown(0))
@@ -37,7 +37,7 @@ public class Player_Behaviour : MonoBehaviour
 
             if (Physics.Raycast(mouseHitPoint, out hit, 1000, terrainLayer))
             {
-                myNavMeshAgent.destination = hit.point;
+                m_myNavMeshAgent.destination = hit.point;
             }
         }
     }
