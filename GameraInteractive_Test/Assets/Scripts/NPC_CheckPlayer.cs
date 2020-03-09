@@ -3,7 +3,10 @@ using UnityEngine;
 
 public class NPC_CheckPlayer : MonoBehaviour
 {
-    public float minRange, midRange, maxRange, outOfSightRange;
+    public float minRange = 1f;
+    public float midRange = 5f;
+    public float maxRange = 10f;
+    public float outOfSightRange = 30f;
     public bool drawRangeDebug;
     [HideInInspector]
     public bool playerNearby, playerClose, playerAttached;
@@ -32,8 +35,11 @@ public class NPC_CheckPlayer : MonoBehaviour
 
     void Update()
     {
+        // check range distance from NPC to player
         if (m_playerDistance > maxRange && m_playerDistance < outOfSightRange)
         {
+            // NPC inside camera view but not close enough to activate actions (attacks, interactions,...)
+
             playerNearby = false;
             playerClose = false;
             playerAttached = false;
@@ -46,24 +52,32 @@ public class NPC_CheckPlayer : MonoBehaviour
         }
         else if(m_playerDistance < maxRange && m_playerDistance > midRange)
         {
+            // player in range to NPC (use this for long range attacks or far interactions)
+
             playerNearby = true;
             playerClose = false;
             playerAttached = false;
         }
         else if (m_playerDistance < midRange && m_playerDistance > minRange)
         {
+            // player close to NPC (use this for mid range attacks or close interactions)
+
             playerNearby = false;
             playerClose = true;
             playerAttached = false;
         }         
         else if ( m_playerDistance < minRange)
         {
+            // player attached to NPC (use this for melee attacks or very close interactions)
+
             playerNearby = false;
             playerClose = false;
             playerAttached = true;
         } 
         else if (m_playerDistance > outOfSightRange)
         {
+            // player far far away from NPC (not visible in camera)
+
             m_thisNPC.SetActive(false);
             if (m_myAnim != null)
                 m_myAnim.enabled = false;
@@ -73,6 +87,7 @@ public class NPC_CheckPlayer : MonoBehaviour
     }
 
     // coroutine to check distance from player (not every frame)
+    // block coroutine with m_checkDistance bool variable
     IEnumerator CheckDistance()
     {
         while (m_checkDistance)
