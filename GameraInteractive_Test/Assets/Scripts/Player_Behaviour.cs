@@ -18,7 +18,6 @@ public class Player_Behaviour : MonoBehaviour
         m_myNavMeshAgent = GetComponent<NavMeshAgent>();
         m_myAnim = GetComponentInChildren<Animator>();
     }
-
     
     void Update()
     {
@@ -27,7 +26,8 @@ public class Player_Behaviour : MonoBehaviour
         m_turnMovement = Mathf.Atan2(m_playerMovement.x, m_playerMovement.z);
         m_myAnim.SetFloat("ver", m_playerMovement.z, 0.1f, Time.deltaTime);
         m_myAnim.SetFloat("hor", m_turnMovement, 0.1f, Time.deltaTime);
-
+        float m_turnSpeedExtra = Mathf.Lerp(180, 360, m_playerMovement.z);
+        transform.Rotate(0, m_turnSpeedExtra * m_turnMovement * Time.deltaTime, 0);
 
         if (Input.GetMouseButtonDown(0))
         {

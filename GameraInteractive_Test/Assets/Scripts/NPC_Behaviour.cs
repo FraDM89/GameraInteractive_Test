@@ -12,7 +12,7 @@ public class NPC_Behaviour : MonoBehaviour
     public Transform raycastPoint;
     public Transform[] waypoints;
     public float timeOnWaypoint = 1f;
-    public float npcFieldOfView;
+    public float npcFieldOfView = 100f;
     public float rotSpeed = 100f;
     public float attackRatio;
 
@@ -65,6 +65,7 @@ public class NPC_Behaviour : MonoBehaviour
             m_patroling = false;
             m_npcAgent.speed = 0;
             m_playerInteract = true;
+            
         }
 
         // (basic animator controller) calculate speed from moving agent to animate blendTree, please check animator variables name
@@ -74,8 +75,10 @@ public class NPC_Behaviour : MonoBehaviour
             m_npcMovement = transform.InverseTransformDirection(m_npcMovement);
             m_turnMovement = Mathf.Atan2(m_npcMovement.x, m_npcMovement.z);
 
-            m_npcAnim.SetFloat("ver", m_npcMovement.z, 0.5f, Time.deltaTime);
+            m_npcAnim.SetFloat("ver", m_npcMovement.z, 0.1f, Time.deltaTime);
             m_npcAnim.SetFloat("hor", m_turnMovement, 0.5f, Time.deltaTime);
+
+            ExtraRotation();
         }
     }
 
@@ -111,13 +114,17 @@ public class NPC_Behaviour : MonoBehaviour
             Vector3 playerDirection = other.transform.position - transform.position;
             float anglePlayerDirection = Vector3.Angle(playerDirection, transform.forward);
 
+            
+
             // player vector direction inside enemy field of view angle
             if (anglePlayerDirection < npcFieldOfView / 2 && raycastPoint != null && m_searchPlayer)
             {
                 RaycastHit hit;
                 Ray ray = new Ray(raycastPoint.position, playerDirection.normalized);
 
-                if(Physics.Raycast(ray, out hit, m_npcCollider.radius))
+                print("a");
+
+                if (Physics.Raycast(ray, out hit, m_npcCollider.radius))
                 {
                     // another control to check if NPC see player without occlusions (walls for example)
                     if (hit.collider.CompareTag("Player"))
@@ -191,6 +198,12 @@ public class NPC_Behaviour : MonoBehaviour
             print("Hello adventurer! Want to buy something?");
     }
     
+    void ExtraRotation()
+    {
+        float m_turnSpeedExtra = Mathf.Lerp(180, 360, m_npcMovement.z);
+        transform.Rotate(0, m_turnSpeedExtra * m_turnMovement * Time.deltaTime, 0);
+    }
+
     IEnumerator AttackPlayer()
     {
         m_isAttacking = true;
